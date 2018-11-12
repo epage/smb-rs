@@ -17,7 +17,7 @@
 
 use core::*;
 use log::*;
-use smb::smb::*;
+use smb::*;
 
 #[repr(u32)]
 pub enum SMBEvent {

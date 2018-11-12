@@ -15,6 +15,10 @@
  * 02110-1301, USA.
  */
 
+#[macro_use]
+extern crate nom;
+extern crate der_parser;
+
 pub mod smb_records;
 pub mod smb1_records;
 pub mod smb2_records;
@@ -38,6 +42,3 @@ pub mod events;
 pub mod auth;
 pub mod files;
 pub mod funcs;
-
-//#[cfg(feature = "lua")]
-//pub mod lua;

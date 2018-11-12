@@ -26,13 +26,13 @@ use nom::{IResult};
 use core::*;
 use log::*;
 
-use smb::smb::*;
-use smb::dcerpc::*;
-use smb::events::*;
-use smb::files::*;
+use smb::*;
+use dcerpc::*;
+use events::*;
+use files::*;
 
-use smb::smb1_records::*;
-use smb::smb1_session::*;
+use smb1_records::*;
+use smb1_session::*;
 
 // https://msdn.microsoft.com/en-us/library/ee441741.aspx
 pub const SMB1_COMMAND_CREATE_DIRECTORY:        u8 = 0x00;

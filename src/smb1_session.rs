@@ -19,11 +19,11 @@ use nom::{IResult};
 
 use log::*;
 
-use smb::smb_records::*;
-use smb::smb1_records::*;
-use smb::smb::*;
-use smb::events::*;
-use smb::auth::*;
+use smb_records::*;
+use smb1_records::*;
+use smb::*;
+use events::*;
+use auth::*;
 
 #[derive(Debug)]
 pub struct SessionSetupRequest {

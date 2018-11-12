@@ -19,13 +19,13 @@ use core::*;
 use log::*;
 use nom::IResult;
 
-use smb::smb::*;
-use smb::smb2_records::*;
-use smb::smb2_session::*;
-use smb::smb2_ioctl::*;
-use smb::dcerpc::*;
-use smb::events::*;
-use smb::files::*;
+use smb::*;
+use smb2_records::*;
+use smb2_session::*;
+use smb2_ioctl::*;
+use dcerpc::*;
+use events::*;
+use files::*;
 
 pub const SMB2_COMMAND_NEGOTIATE_PROTOCOL:      u16 = 0;
 pub const SMB2_COMMAND_SESSION_SETUP:           u16 = 1;

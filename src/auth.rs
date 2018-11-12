@@ -18,8 +18,8 @@
 use kerberos::*;
 
 use log::*;
-use smb::ntlmssp_records::*;
-use smb::smb::*;
+use ntlmssp_records::*;
+use smb::*;
 
 use nom::{IResult, ErrorKind};
 use der_parser;

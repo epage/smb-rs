@@ -38,18 +38,18 @@ use log::*;
 use applayer;
 use applayer::LoggerFlags;
 
-use smb::nbss_records::*;
-use smb::smb1_records::*;
-use smb::smb2_records::*;
+use nbss_records::*;
+use smb1_records::*;
+use smb2_records::*;
 
-use smb::smb1::*;
-use smb::smb2::*;
-use smb::smb3::*;
-use smb::dcerpc::*;
-use smb::session::*;
-use smb::events::*;
-use smb::files::*;
-use smb::smb2_ioctl::*;
+use smb1::*;
+use smb2::*;
+use smb3::*;
+use dcerpc::*;
+use session::*;
+use events::*;
+use files::*;
+use smb2_ioctl::*;
 
 pub static mut SURICATA_SMB_FILE_CONFIG: Option<&'static SuricataFileContext> = None;
 
@@ -333,7 +333,7 @@ impl SMBVerCmdStat {
 /// Coordinated Universal Time (UTC)."
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct SMBFiletime {
-    ts: u64, 
+    ts: u64,
 }
 
 impl SMBFiletime {

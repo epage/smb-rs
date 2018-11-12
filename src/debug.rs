@@ -15,7 +15,7 @@
  * 02110-1301, USA.
  */
 
-use smb::smb::*;
+use smb::*;
 
 #[cfg(feature = "debug")]
 use log::*;

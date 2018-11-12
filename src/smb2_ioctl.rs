@@ -17,12 +17,12 @@
 
 use nom::IResult;
 use log::*;
-use smb::smb::*;
-use smb::smb2::*;
-use smb::smb2_records::*;
-use smb::dcerpc::*;
-use smb::events::*;
-use smb::funcs::*;
+use smb::*;
+use smb2::*;
+use smb2_records::*;
+use dcerpc::*;
+use events::*;
+use funcs::*;
 
 #[derive(Debug)]
 pub struct SMBTransactionIoctl {

@@ -20,7 +20,7 @@ use log::*;
 use filetracker::*;
 use filecontainer::*;
 
-use smb::smb::*;
+use smb::*;
 
 /// File tracking transaction. Single direction only.
 #[derive(Debug)]

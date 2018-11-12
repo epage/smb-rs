@@ -20,11 +20,11 @@ extern crate libc;
 use std::str;
 use std::string::String;
 use json::*;
-use smb::smb::*;
-use smb::smb1::*;
-use smb::smb2::*;
-use smb::dcerpc::*;
-use smb::funcs::*;
+use smb::*;
+use smb1::*;
+use smb2::*;
+use dcerpc::*;
+use funcs::*;
 
 #[cfg(not(feature = "debug"))]
 fn debug_add_progress(_js: &Json, _tx: &SMBTransaction) { }

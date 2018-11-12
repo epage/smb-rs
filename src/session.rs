@@ -17,9 +17,9 @@
 
 use log::*;
 use kerberos::*;
-use smb::smb::*;
-use smb::smb1_session::*;
-use smb::auth::*;
+use smb::*;
+use smb1_session::*;
+use auth::*;
 
 #[derive(Debug)]
 pub struct SMBTransactionSessionSetup {

@@ -21,7 +21,7 @@ use std;
 use std::ptr;
 use core::*;
 use log::*;
-use smb::smb::*;
+use smb::*;
 
 #[no_mangle]
 pub extern "C" fn rs_smb_tx_get_share(tx: &mut SMBTransaction,

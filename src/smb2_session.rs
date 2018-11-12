@@ -19,10 +19,10 @@ use nom::{IResult};
 
 use log::*;
 
-use smb::smb2_records::*;
-use smb::smb::*;
-//use smb::events::*;
-use smb::auth::*;
+use smb2_records::*;
+use smb::*;
+//use events::*;
+use auth::*;
 
 pub fn smb2_session_setup_request(state: &mut SMBState, r: &Smb2Record)
 {
