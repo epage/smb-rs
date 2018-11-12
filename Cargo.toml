@@ -5,3 +5,4 @@ version = "0.1.0"
 [dependencies]
 nom = "3.2.1"
 der-parser = "0.5.2"
+log = "0.4"

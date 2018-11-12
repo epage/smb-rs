@@ -15,7 +15,6 @@
  * 02110-1301, USA.
  */
 
-use log::*;
 use kerberos::*;
 use smb::*;
 use smb1_session::*;
@@ -52,7 +51,7 @@ impl SMBState {
         tx.request_done = true;
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
 
-        SCLogDebug!("SMB: TX SESSIONSETUP created: ID {}", tx.id);
+        debug!("SMB: TX SESSIONSETUP created: ID {}", tx.id);
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
         return tx_ref.unwrap();

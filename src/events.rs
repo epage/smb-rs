@@ -16,7 +16,6 @@
  */
 
 use core::*;
-use log::*;
 use smb::*;
 
 #[repr(u32)]
@@ -31,7 +30,7 @@ pub enum SMBEvent {
 }
 
 pub fn smb_str_to_event(instr: &str) -> i32 {
-    SCLogDebug!("checking {}", instr);
+    debug!("checking {}", instr);
     match instr {
         "internal_error"                => SMBEvent::InternalError as i32,
         "malformed_data"                => SMBEvent::MalformedData as i32,

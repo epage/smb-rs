@@ -20,7 +20,6 @@ extern crate libc;
 use std;
 use std::ptr;
 use core::*;
-use log::*;
 use smb::*;
 
 #[no_mangle]
@@ -31,7 +30,7 @@ pub extern "C" fn rs_smb_tx_get_share(tx: &mut SMBTransaction,
 {
     match tx.type_data {
         Some(SMBTransactionTypeData::TREECONNECT(ref x)) => {
-            SCLogDebug!("is_pipe {}", x.is_pipe);
+            debug!("is_pipe {}", x.is_pipe);
             if !x.is_pipe {
                 unsafe {
                     *buffer = x.share_name.as_ptr();
@@ -59,7 +58,7 @@ pub extern "C" fn rs_smb_tx_get_named_pipe(tx: &mut SMBTransaction,
 {
     match tx.type_data {
         Some(SMBTransactionTypeData::TREECONNECT(ref x)) => {
-            SCLogDebug!("is_pipe {}", x.is_pipe);
+            debug!("is_pipe {}", x.is_pipe);
             if x.is_pipe {
                 unsafe {
                     *buffer = x.share_name.as_ptr();
@@ -117,7 +116,7 @@ pub extern "C" fn rs_smb_tx_get_dce_opnum(tx: &mut SMBTransaction,
                                             opnum: *mut libc::uint16_t)
                                             -> libc::uint8_t
 {
-    SCLogDebug!("rs_smb_tx_get_dce_opnum: start");
+    debug!("rs_smb_tx_get_dce_opnum: start");
     match tx.type_data {
         Some(SMBTransactionTypeData::DCERPC(ref x)) => {
             if x.req_cmd == 1 { // REQUEST
@@ -199,10 +198,10 @@ pub extern "C" fn rs_smb_tx_get_dce_iface(state: &mut SMBState,
     };
 
     let uuid = unsafe{std::slice::from_raw_parts(uuid_ptr, uuid_len as usize)};
-    SCLogDebug!("looking for UUID {:?}", uuid);
+    debug!("looking for UUID {:?}", uuid);
 
     for i in ifaces {
-        SCLogDebug!("stored UUID {:?} acked {} ack_result {}", i, i.acked, i.ack_result);
+        debug!("stored UUID {:?} acked {} ack_result {}", i, i.acked, i.ack_result);
 
         if i.acked && i.ack_result == 0 && i.uuid == uuid {
             if match_version(ver_op as u8, ver_check as u16, i.ver) {

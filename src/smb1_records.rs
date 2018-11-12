@@ -15,7 +15,6 @@
  * 02110-1301, USA.
  */
 
-use log::*;
 use nom::{rest, le_u8, le_u16, le_u32, le_u64, IResult};
 use smb::*;
 use smb_records::*;
@@ -306,7 +305,7 @@ pub fn parse_smb_trans_request_record<'a, 'b>(i: &'a[u8], r: &SmbRecord<'b>)
         IResult::Error(e) => { return IResult::Error(e); }
     };
     let mut offset = 32 + (i.len() - rem.len()); // init with SMB header
-    SCLogDebug!("params {:?}: offset {}", params, offset);
+    debug!("params {:?}: offset {}", params, offset);
 
     let (rem2, n) = match smb1_get_string(rem, r, offset) {
         IResult::Done(rem, rd) => (rem, rd),
@@ -314,7 +313,7 @@ pub fn parse_smb_trans_request_record<'a, 'b>(i: &'a[u8], r: &SmbRecord<'b>)
         IResult::Error(e) => { return IResult::Error(e); }
     };
     offset += rem.len() - rem2.len();
-    SCLogDebug!("n {:?}: offset {}", n, offset);
+    debug!("n {:?}: offset {}", n, offset);
 
     // spec says pad to 4 bytes, but traffic shows this doesn't
     // always happen.
@@ -324,7 +323,7 @@ pub fn parse_smb_trans_request_record<'a, 'b>(i: &'a[u8], r: &SmbRecord<'b>)
     } else {
         offset % 4
     };
-    SCLogDebug!("pad1 {}", pad1);
+    debug!("pad1 {}", pad1);
     offset += pad1;
     offset += params.param_cnt as usize;
 
@@ -336,7 +335,7 @@ pub fn parse_smb_trans_request_record<'a, 'b>(i: &'a[u8], r: &SmbRecord<'b>)
         } else {
             offset % 4
         };
-        SCLogDebug!("pad2 {}", pad2);
+        debug!("pad2 {}", pad2);
 
         let d = match parse_smb_trans_request_record_data(rem2,
                 pad1, params.param_cnt, pad2, params.data_cnt) {
@@ -344,7 +343,7 @@ pub fn parse_smb_trans_request_record<'a, 'b>(i: &'a[u8], r: &SmbRecord<'b>)
             IResult::Incomplete(ii) => { return IResult::Incomplete(ii); }
             IResult::Error(e) => { return IResult::Error(e); }
         };
-        SCLogDebug!("d {:?}", d);
+        debug!("d {:?}", d);
         d
     } else {
         SmbRecordTransRequestData { data: &[], } // no data

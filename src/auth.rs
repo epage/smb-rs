@@ -17,7 +17,6 @@
 
 use kerberos::*;
 
-use log::*;
 use ntlmssp_records::*;
 use smb::*;
 
@@ -31,7 +30,7 @@ fn parse_secblob_get_spnego(blob: &[u8]) -> IResult<&[u8], &[u8]>
         IResult::Incomplete(needed) => { return IResult::Incomplete(needed); },
         IResult::Error(err) => { return IResult::Error(err); },
     };
-    SCLogDebug!("parse_secblob_get_spnego: base_o {:?}", base_o);
+    debug!("parse_secblob_get_spnego: base_o {:?}", base_o);
     let d = match base_o.content.as_slice() {
         Err(_) => { return IResult::Error(error_code!(ErrorKind::Custom(SECBLOB_NOT_SPNEGO))); },
         Ok(d) => d,
@@ -41,7 +40,7 @@ fn parse_secblob_get_spnego(blob: &[u8]) -> IResult<&[u8], &[u8]>
         IResult::Incomplete(needed) => { return IResult::Incomplete(needed); },
         IResult::Error(err) => { return IResult::Error(err); },
     };
-    SCLogDebug!("parse_secblob_get_spnego: sub_o {:?}", o);
+    debug!("parse_secblob_get_spnego: sub_o {:?}", o);
 
     let oid = match o.content.as_oid() {
         Ok(oid) => oid,
@@ -49,19 +48,19 @@ fn parse_secblob_get_spnego(blob: &[u8]) -> IResult<&[u8], &[u8]>
             return IResult::Error(error_code!(ErrorKind::Custom(SECBLOB_NOT_SPNEGO)));
         },
     };
-    SCLogDebug!("oid {}", oid.to_string());
+    debug!("oid {}", oid.to_string());
 
     match oid.to_string().as_str() {
         "1.3.6.1.5.5.2" => {
-            SCLogDebug!("SPNEGO {}", oid);
+            debug!("SPNEGO {}", oid);
         },
         _ => {
             return IResult::Error(error_code!(ErrorKind::Custom(SECBLOB_NOT_SPNEGO)));
         },
     }
 
-    SCLogDebug!("parse_secblob_get_spnego: next {:?}", next);
-    SCLogDebug!("parse_secblob_get_spnego: DONE");
+    debug!("parse_secblob_get_spnego: next {:?}", next);
+    debug!("parse_secblob_get_spnego: DONE");
     IResult::Done(rem, next)
 }
 
@@ -69,7 +68,7 @@ fn parse_secblob_spnego_start(blob: &[u8]) -> IResult<&[u8], &[u8]>
 {
     let (rem, o) = match der_parser::parse_der(blob) {
         IResult::Done(rem,o) => {
-            SCLogDebug!("o {:?}", o);
+            debug!("o {:?}", o);
             (rem, o)
         },
         IResult::Incomplete(needed) => { return IResult::Incomplete(needed); },
@@ -77,7 +76,7 @@ fn parse_secblob_spnego_start(blob: &[u8]) -> IResult<&[u8], &[u8]>
     };
     let d = match o.content.as_slice() {
         Ok(d) => {
-            SCLogDebug!("d: next data len {}",d.len());
+            debug!("d: next data len {}",d.len());
             d
         },
         _ => {
@@ -104,7 +103,7 @@ fn parse_secblob_spnego(blob: &[u8]) -> Option<SpnegoRequest>
         _ => { return None; },
     };
     for s in o {
-        SCLogDebug!("s {:?}", s);
+        debug!("s {:?}", s);
 
         let n = match s.content.as_slice() {
             Ok(s) => s,
@@ -114,26 +113,26 @@ fn parse_secblob_spnego(blob: &[u8]) -> Option<SpnegoRequest>
             IResult::Done(_,x) => x,
             _ => { continue; },
         };
-        SCLogDebug!("o {:?}", o);
+        debug!("o {:?}", o);
         match o.content {
             der_parser::DerObjectContent::Sequence(ref seq) => {
                 for se in seq {
-                    SCLogDebug!("SEQ {:?}", se);
+                    debug!("SEQ {:?}", se);
                     match se.content {
                         der_parser::DerObjectContent::OID(ref oid) => {
-                            SCLogDebug!("OID {:?}", oid);
+                            debug!("OID {:?}", oid);
                             match oid.to_string().as_str() {
-                                "1.2.840.48018.1.2.2" => { SCLogDebug!("Microsoft Kerberos 5"); },
-                                "1.2.840.113554.1.2.2" => { SCLogDebug!("Kerberos 5"); have_kerberos = true; },
-                                "1.2.840.113554.1.2.2.1" => { SCLogDebug!("krb5-name"); },
-                                "1.2.840.113554.1.2.2.2" => { SCLogDebug!("krb5-principal"); },
-                                "1.2.840.113554.1.2.2.3" => { SCLogDebug!("krb5-user-to-user-mech"); },
-                                "1.3.6.1.4.1.311.2.2.10" => { SCLogDebug!("NTLMSSP"); have_ntlmssp = true; },
-                                "1.3.6.1.4.1.311.2.2.30" => { SCLogDebug!("NegoEx"); },
-                                _ => { SCLogDebug!("unexpected OID {:?}", oid); },
+                                "1.2.840.48018.1.2.2" => { debug!("Microsoft Kerberos 5"); },
+                                "1.2.840.113554.1.2.2" => { debug!("Kerberos 5"); have_kerberos = true; },
+                                "1.2.840.113554.1.2.2.1" => { debug!("krb5-name"); },
+                                "1.2.840.113554.1.2.2.2" => { debug!("krb5-principal"); },
+                                "1.2.840.113554.1.2.2.3" => { debug!("krb5-user-to-user-mech"); },
+                                "1.3.6.1.4.1.311.2.2.10" => { debug!("NTLMSSP"); have_ntlmssp = true; },
+                                "1.3.6.1.4.1.311.2.2.30" => { debug!("NegoEx"); },
+                                _ => { debug!("unexpected OID {:?}", oid); },
                             }
                         },
-                        _ => { SCLogDebug!("expected OID, got {:?}", se); },
+                        _ => { debug!("expected OID, got {:?}", se); },
                     }
                 }
             },
@@ -148,7 +147,7 @@ fn parse_secblob_spnego(blob: &[u8]) -> Option<SpnegoRequest>
                 }
 
                 if have_ntlmssp && kticket == None {
-                    SCLogDebug!("parsing expected NTLMSSP");
+                    debug!("parsing expected NTLMSSP");
                     ntlmssp = parse_ntlmssp_blob(os);
                 }
             },
@@ -176,10 +175,10 @@ fn parse_ntlmssp_blob(blob: &[u8]) -> Option<NtlmsspData>
 {
     let mut ntlmssp_data : Option<NtlmsspData> = None;
 
-    SCLogDebug!("NTLMSSP {:?}", blob);
+    debug!("NTLMSSP {:?}", blob);
     match parse_ntlmssp(blob) {
         IResult::Done(_, nd) => {
-            SCLogDebug!("NTLMSSP TYPE {}/{} nd {:?}",
+            debug!("NTLMSSP TYPE {}/{} nd {:?}",
                     nd.msg_type, &ntlmssp_type_string(nd.msg_type), nd);
             match nd.msg_type {
                 NTLMSSP_NEGOTIATE => {
@@ -187,7 +186,7 @@ fn parse_ntlmssp_blob(blob: &[u8]) -> Option<NtlmsspData>
                 NTLMSSP_AUTH => {
                     match parse_ntlm_auth_record(nd.data) {
                         IResult::Done(_, ad) => {
-                            SCLogDebug!("auth data {:?}", ad);
+                            debug!("auth data {:?}", ad);
                             let mut host = ad.host.to_vec();
                             host.retain(|&i|i != 0x00);
                             let mut user = ad.user.to_vec();

@@ -34,7 +34,6 @@ use nom::IResult;
 use std::collections::HashMap;
 
 use core::*;
-use log::*;
 use applayer;
 use applayer::LoggerFlags;
 
@@ -403,7 +402,7 @@ impl SMBState {
         tx.request_done = true;
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
 
-        SCLogDebug!("SMB: TX SETFILEPATHINFO created: ID {}", tx.id);
+        debug!("SMB: TX SETFILEPATHINFO created: ID {}", tx.id);
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
         return tx_ref.unwrap();
@@ -422,7 +421,7 @@ impl SMBState {
         tx.request_done = true;
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
 
-        SCLogDebug!("SMB: TX SETFILEPATHINFO created: ID {}", tx.id);
+        debug!("SMB: TX SETFILEPATHINFO created: ID {}", tx.id);
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
         return tx_ref.unwrap();
@@ -455,7 +454,7 @@ impl SMBState {
         tx.request_done = true;
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
 
-        SCLogDebug!("SMB: TX RENAME created: ID {}", tx.id);
+        debug!("SMB: TX RENAME created: ID {}", tx.id);
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
         return tx_ref.unwrap();
@@ -835,12 +834,12 @@ impl SMBState {
         let mut tx = SMBTransaction::new();
         self.tx_id += 1;
         tx.id = self.tx_id;
-        SCLogDebug!("TX {} created", tx.id);
+        debug!("TX {} created", tx.id);
         return tx;
     }
 
     pub fn free_tx(&mut self, tx_id: u64) {
-        SCLogDebug!("Freeing TX with ID {} TX.ID {}", tx_id, tx_id+1);
+        debug!("Freeing TX with ID {} TX.ID {}", tx_id, tx_id+1);
         let len = self.transactions.len();
         let mut found = false;
         let mut index = 0;
@@ -849,12 +848,12 @@ impl SMBState {
             if tx.id == tx_id + 1 {
                 found = true;
                 index = i;
-                SCLogDebug!("tx {} progress {}/{}", tx.id, tx.request_done, tx.response_done);
+                debug!("tx {} progress {}/{}", tx.id, tx.request_done, tx.response_done);
                 break;
             }
         }
         if found {
-            SCLogDebug!("freeing TX with ID {} TX.ID {} at index {} left: {} max id: {}",
+            debug!("freeing TX with ID {} TX.ID {} at index {} left: {} max id: {}",
                     tx_id, tx_id+1, index, self.transactions.len(), self.tx_id);
             self.transactions.remove(index);
         }
@@ -875,7 +874,7 @@ impl SMBState {
                 continue;
             }
             *state = index as u64 + 1;
-            //SCLogDebug!("returning tx_id {} has_next? {} (len {} index {}), tx {:?}",
+            //debug!("returning tx_id {} has_next? {} (len {} index {}), tx {:?}",
             //        tx.id - 1, (len - index) > 1, len, index, tx);
             return Some((tx, tx.id - 1, (len - index) > 1));
         }
@@ -901,12 +900,12 @@ impl SMBState {
                     let (_, cmd) = tx.vercmd.get_smb1_cmd();
                     _smbcmd = cmd as u16;
                 }
-                SCLogDebug!("Found SMB TX: id {} ver:{} cmd:{} progress {}/{} type_data {:?}",
+                debug!("Found SMB TX: id {} ver:{} cmd:{} progress {}/{} type_data {:?}",
                         tx.id, ver, _smbcmd, tx.request_done, tx.response_done, tx.type_data);
                 return Some(tx);
             }
         }
-        SCLogDebug!("Failed to find SMB TX with ID {}", tx_id);
+        debug!("Failed to find SMB TX with ID {}", tx_id);
         return None;
     }
 
@@ -928,7 +927,7 @@ impl SMBState {
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
         tx.hdr = key;
 
-        SCLogDebug!("SMB: TX GENERIC created: ID {} tx list {} {:?}",
+        debug!("SMB: TX GENERIC created: ID {} tx list {} {:?}",
                 tx.id, self.transactions.len(), &tx);
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
@@ -1002,7 +1001,7 @@ impl SMBState {
         tx.request_done = true;
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
 
-        SCLogDebug!("SMB: TX NEGOTIATE created: ID {} SMB ver {}", tx.id, smb_ver);
+        debug!("SMB: TX NEGOTIATE created: ID {} SMB ver {}", tx.id, smb_ver);
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
         return tx_ref.unwrap();
@@ -1040,7 +1039,7 @@ impl SMBState {
         tx.request_done = true;
         tx.response_done = self.tc_trunc; // no response expected if tc is truncated
 
-        SCLogDebug!("SMB: TX TREECONNECT created: ID {} NAME {}",
+        debug!("SMB: TX TREECONNECT created: ID {} NAME {}",
                 tx.id, String::from_utf8_lossy(&name));
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
@@ -1093,11 +1092,11 @@ impl SMBState {
             };
 
             if found {
-                SCLogDebug!("SMB: Found SMB create TX with ID {}", tx.id);
+                debug!("SMB: Found SMB create TX with ID {}", tx.id);
                 return Some(tx);
             }
         }
-        SCLogDebug!("SMB: Failed to find SMB create TX with key {:?}", hdr);
+        debug!("SMB: Failed to find SMB create TX with key {:?}", hdr);
         return None;
     }
 
@@ -1121,14 +1120,14 @@ impl SMBState {
                     Ok("suricata::dcerpc") => ("unknown", true),
                     Err(_) => ("MALFORMED", false),
                     Ok(&_) => {
-                        SCLogDebug!("don't know {}", String::from_utf8_lossy(&n));
+                        debug!("don't know {}", String::from_utf8_lossy(&n));
                         ("UNKNOWN", false)
                     },
                 }
             },
             _ => { ("UNKNOWN", false) },
         };
-        SCLogDebug!("service {} is_dcerpc {}", name, is_dcerpc);
+        debug!("service {} is_dcerpc {}", name, is_dcerpc);
         (&name, is_dcerpc)
     }
 
@@ -1138,7 +1137,7 @@ impl SMBState {
      * and we're back in sync. Mark older txs as 'done' */
     fn check_gap_resync(&mut self, prior_max_id: u64)
     {
-        SCLogDebug!("check_gap_resync2: post-GAP resync check ({}/{})", self.ts_ssn_gap, self.tc_ssn_gap);
+        debug!("check_gap_resync2: post-GAP resync check ({}/{})", self.ts_ssn_gap, self.tc_ssn_gap);
         if !self.ts_ssn_gap && !self.tc_ssn_gap {
             return;
         }
@@ -1150,7 +1149,7 @@ impl SMBState {
             None => (false, 0),
         };
         if last_done && id > 0 {
-            SCLogDebug!("check_gap_resync2: TX {} is done post-GAP, mark all older ones complete", id);
+            debug!("check_gap_resync2: TX {} is done post-GAP, mark all older ones complete", id);
             self.ts_ssn_gap = false;
             self.tc_ssn_gap = false;
             self.close_non_file_txs(prior_max_id);
@@ -1159,16 +1158,16 @@ impl SMBState {
 
     /* close all txs execpt file xfers. */
     fn close_non_file_txs(&mut self, max_id: u64) {
-        SCLogDebug!("close_non_file_txs: checking for non-file txs to wrap up");
+        debug!("close_non_file_txs: checking for non-file txs to wrap up");
         for tx in &mut self.transactions {
             if tx.id >= max_id {
-                SCLogDebug!("close_non_file_txs: done");
+                debug!("close_non_file_txs: done");
                 break;
             }
             if let Some(SMBTransactionTypeData::FILE(_)) = tx.type_data {
                 // leaving FILE txs open as they can deal with gaps.
             } else {
-                SCLogDebug!("ose_non_file_txs: tx {} marked as done", tx.id);
+                debug!("ose_non_file_txs: tx {} marked as done", tx.id);
                 tx.request_done = true;
                 tx.response_done = true;
             }
@@ -1207,7 +1206,7 @@ impl SMBState {
         if skip_left == 0 {
             return 0
         }
-        SCLogDebug!("skip_left {} input_size {}", skip_left, input_size);
+        debug!("skip_left {} input_size {}", skip_left, input_size);
 
         let consumed = if skip_left >= input_size {
             input_size
@@ -1232,7 +1231,7 @@ impl SMBState {
     /// return bytes consumed
     pub fn parse_tcp_data_ts_partial<'b>(&mut self, input: &'b[u8]) -> usize
     {
-        SCLogDebug!("incomplete of size {}", input.len());
+        debug!("incomplete of size {}", input.len());
         if input.len() < 512 {
             // check for malformed data. Wireshark reports as
             // 'NBSS continuation data'. If it's invalid we're
@@ -1241,7 +1240,7 @@ impl SMBState {
                 match parse_nbss_record_partial(input) {
                     IResult::Done(_, ref hdr) => {
                         if !hdr.is_smb() {
-                            SCLogDebug!("partial NBSS, not SMB and no known msg type {}", hdr.message_type);
+                            debug!("partial NBSS, not SMB and no known msg type {}", hdr.message_type);
                             self.trunc_ts();
                             return 0;
                         }
@@ -1254,13 +1253,13 @@ impl SMBState {
 
         match parse_nbss_record_partial(input) {
             IResult::Done(output, ref nbss_part_hdr) => {
-                SCLogDebug!("parse_nbss_record_partial ok, output len {}", output.len());
+                debug!("parse_nbss_record_partial ok, output len {}", output.len());
                 if nbss_part_hdr.message_type == NBSS_MSGTYPE_SESSION_MESSAGE {
                     match parse_smb_version(&nbss_part_hdr.data) {
                         IResult::Done(_, ref smb) => {
-                            SCLogDebug!("SMB {:?}", smb);
+                            debug!("SMB {:?}", smb);
                             if smb.version == 0xff_u8 { // SMB1
-                                SCLogDebug!("SMBv1 record");
+                                debug!("SMBv1 record");
                                 match parse_smb_record(&nbss_part_hdr.data) {
                                     IResult::Done(_, ref r) => {
                                         if r.command == SMB1_COMMAND_WRITE_ANDX {
@@ -1284,10 +1283,10 @@ impl SMBState {
 
                                 }
                             } else if smb.version == 0xfe_u8 { // SMB2
-                                SCLogDebug!("SMBv2 record");
+                                debug!("SMBv2 record");
                                 match parse_smb2_request_record(&nbss_part_hdr.data) {
                                     IResult::Done(_, ref smb_record) => {
-                                        SCLogDebug!("SMB2: partial record {}",
+                                        debug!("SMB2: partial record {}",
                                                 &smb2_command_string(smb_record.command));
                                         if smb_record.command == SMB2_COMMAND_WRITE {
                                             smb2_write_request_record(self, smb_record);
@@ -1357,10 +1356,10 @@ impl SMBState {
         }
         // gap
         if self.ts_gap {
-            SCLogDebug!("TS trying to catch up after GAP (input {})", cur_i.len());
+            debug!("TS trying to catch up after GAP (input {})", cur_i.len());
             match search_smb_record(cur_i) {
                 IResult::Done(_, pg) => {
-                    SCLogDebug!("smb record found");
+                    debug!("smb record found");
                     let smb2_offset = cur_i.len() - pg.data.len();
                     if smb2_offset < 4 {
                         return 0;
@@ -1371,7 +1370,7 @@ impl SMBState {
                     self.ts_gap = false;
                 },
                 _ => {
-                    SCLogDebug!("smb record NOT found");
+                    debug!("smb record NOT found");
                     self.tcp_buffer_ts.extend_from_slice(cur_i);
                     return 0;
                 },
@@ -1385,9 +1384,9 @@ impl SMBState {
                         // let's parse it
                         match parse_smb_version(&nbss_hdr.data) {
                             IResult::Done(_, ref smb) => {
-                                SCLogDebug!("SMB {:?}", smb);
+                                debug!("SMB {:?}", smb);
                                 if smb.version == 0xff_u8 { // SMB1
-                                    SCLogDebug!("SMBv1 record");
+                                    debug!("SMBv1 record");
                                     match parse_smb_record(&nbss_hdr.data) {
                                         IResult::Done(_, ref smb_record) => {
                                             smb1_request_record(self, smb_record);
@@ -1400,10 +1399,10 @@ impl SMBState {
                                 } else if smb.version == 0xfe_u8 { // SMB2
                                     let mut nbss_data = nbss_hdr.data;
                                     while nbss_data.len() > 0 {
-                                        SCLogDebug!("SMBv2 record");
+                                        debug!("SMBv2 record");
                                         match parse_smb2_request_record(&nbss_data) {
                                             IResult::Done(nbss_data_rem, ref smb_record) => {
-                                                SCLogDebug!("nbss_data_rem {}", nbss_data_rem.len());
+                                                debug!("nbss_data_rem {}", nbss_data_rem.len());
 
                                                 smb2_request_record(self, smb_record);
                                                 nbss_data = nbss_data_rem;
@@ -1417,7 +1416,7 @@ impl SMBState {
                                 } else if smb.version == 0xfd_u8 { // SMB3 transform
                                     let mut nbss_data = nbss_hdr.data;
                                     while nbss_data.len() > 0 {
-                                        SCLogDebug!("SMBv3 transform record");
+                                        debug!("SMBv3 transform record");
                                         match parse_smb3_transform_record(&nbss_data) {
                                             IResult::Done(nbss_data_rem, ref _smb3_record) => {
                                                 nbss_data = nbss_data_rem;
@@ -1436,7 +1435,7 @@ impl SMBState {
                             },
                         }
                     } else {
-                        SCLogDebug!("NBSS message {:X}", nbss_hdr.message_type);
+                        debug!("NBSS message {:X}", nbss_hdr.message_type);
                     }
                     cur_i = rem;
                 },
@@ -1461,7 +1460,7 @@ impl SMBState {
     /// return bytes consumed
     pub fn parse_tcp_data_tc_partial<'b>(&mut self, input: &'b[u8]) -> usize
     {
-        SCLogDebug!("incomplete of size {}", input.len());
+        debug!("incomplete of size {}", input.len());
         if input.len() < 512 {
             // check for malformed data. Wireshark reports as
             // 'NBSS continuation data'. If it's invalid we're
@@ -1470,7 +1469,7 @@ impl SMBState {
                 match parse_nbss_record_partial(input) {
                     IResult::Done(_, ref hdr) => {
                         if !hdr.is_smb() {
-                            SCLogDebug!("partial NBSS, not SMB and no known msg type {}", hdr.message_type);
+                            debug!("partial NBSS, not SMB and no known msg type {}", hdr.message_type);
                             self.trunc_tc();
                             return 0;
                         }
@@ -1483,16 +1482,16 @@ impl SMBState {
 
         match parse_nbss_record_partial(input) {
             IResult::Done(output, ref nbss_part_hdr) => {
-                SCLogDebug!("parse_nbss_record_partial ok, output len {}", output.len());
+                debug!("parse_nbss_record_partial ok, output len {}", output.len());
                 if nbss_part_hdr.message_type == NBSS_MSGTYPE_SESSION_MESSAGE {
                     match parse_smb_version(&nbss_part_hdr.data) {
                         IResult::Done(_, ref smb) => {
-                            SCLogDebug!("SMB {:?}", smb);
+                            debug!("SMB {:?}", smb);
                             if smb.version == 255u8 { // SMB1
-                                SCLogDebug!("SMBv1 record");
+                                debug!("SMBv1 record");
                                 match parse_smb_record(&nbss_part_hdr.data) {
                                     IResult::Done(_, ref r) => {
-                                        SCLogDebug!("SMB1: partial record {}",
+                                        debug!("SMB1: partial record {}",
                                                 r.command);
                                         if r.command == SMB1_COMMAND_READ_ANDX {
                                             let tree_key = SMBCommonHdr::new(SMBHDR_TYPE_SHARE,
@@ -1512,10 +1511,10 @@ impl SMBState {
                                     _ => { },
                                 }
                             } else if smb.version == 254u8 { // SMB2
-                                SCLogDebug!("SMBv2 record");
+                                debug!("SMBv2 record");
                                 match parse_smb2_response_record(&nbss_part_hdr.data) {
                                     IResult::Done(_, ref smb_record) => {
-                                        SCLogDebug!("SMB2: partial record {}",
+                                        debug!("SMB2: partial record {}",
                                                 &smb2_command_string(smb_record.command));
                                         if smb_record.command == SMB2_COMMAND_READ {
                                             smb2_read_response_record(self, smb_record);
@@ -1558,7 +1557,7 @@ impl SMBState {
             },
         };
         let mut cur_i = tcp_buffer;
-        SCLogDebug!("cur_i.len {}", cur_i.len());
+        debug!("cur_i.len {}", cur_i.len());
         if cur_i.len() > 100000 {
             self.set_event(SMBEvent::RecordOverflow);
             return 1;
@@ -1583,10 +1582,10 @@ impl SMBState {
         }
         // gap
         if self.tc_gap {
-            SCLogDebug!("TC trying to catch up after GAP (input {})", cur_i.len());
+            debug!("TC trying to catch up after GAP (input {})", cur_i.len());
             match search_smb_record(cur_i) {
                 IResult::Done(_, pg) => {
-                    SCLogDebug!("smb record found");
+                    debug!("smb record found");
                     let smb2_offset = cur_i.len() - pg.data.len();
                     if smb2_offset < 4 {
                         return 0;
@@ -1597,7 +1596,7 @@ impl SMBState {
                     self.tc_gap = false;
                 },
                 _ => {
-                    SCLogDebug!("smb record NOT found");
+                    debug!("smb record NOT found");
                     self.tcp_buffer_tc.extend_from_slice(cur_i);
                     return 0;
                 },
@@ -1611,9 +1610,9 @@ impl SMBState {
                         // let's parse it
                         match parse_smb_version(&nbss_hdr.data) {
                             IResult::Done(_, ref smb) => {
-                                SCLogDebug!("SMB {:?}", smb);
+                                debug!("SMB {:?}", smb);
                                 if smb.version == 0xff_u8 { // SMB1
-                                    SCLogDebug!("SMBv1 record");
+                                    debug!("SMBv1 record");
                                     match parse_smb_record(&nbss_hdr.data) {
                                         IResult::Done(_, ref smb_record) => {
                                             smb1_response_record(self, smb_record);
@@ -1626,7 +1625,7 @@ impl SMBState {
                                 } else if smb.version == 0xfe_u8 { // SMB2
                                     let mut nbss_data = nbss_hdr.data;
                                     while nbss_data.len() > 0 {
-                                        SCLogDebug!("SMBv2 record");
+                                        debug!("SMBv2 record");
                                         match parse_smb2_response_record(&nbss_data) {
                                             IResult::Done(nbss_data_rem, ref smb_record) => {
                                                 smb2_response_record(self, smb_record);
@@ -1641,7 +1640,7 @@ impl SMBState {
                                 } else if smb.version == 0xfd_u8 { // SMB3 transform
                                     let mut nbss_data = nbss_hdr.data;
                                     while nbss_data.len() > 0 {
-                                        SCLogDebug!("SMBv3 transform record");
+                                        debug!("SMBv3 transform record");
                                         match parse_smb3_transform_record(&nbss_data) {
                                             IResult::Done(nbss_data_rem, ref _smb3_record) => {
                                                 nbss_data = nbss_data_rem;
@@ -1664,16 +1663,16 @@ impl SMBState {
                             },
                         }
                     } else {
-                        SCLogDebug!("NBSS message {:X}", nbss_hdr.message_type);
+                        debug!("NBSS message {:X}", nbss_hdr.message_type);
                     }
                     cur_i = rem;
                 },
                 IResult::Incomplete(needed) => {
-                    SCLogDebug!("INCOMPLETE have {} needed {:?}", cur_i.len(), needed);
+                    debug!("INCOMPLETE have {} needed {:?}", cur_i.len(), needed);
                     let consumed = self.parse_tcp_data_tc_partial(cur_i);
                     cur_i = &cur_i[consumed ..];
 
-                    SCLogDebug!("INCOMPLETE have {}", cur_i.len());
+                    debug!("INCOMPLETE have {}", cur_i.len());
                     self.tcp_buffer_tc.extend_from_slice(cur_i);
                     break;
                 },
@@ -1701,12 +1700,12 @@ impl SMBState {
 
             let consumed2 = self.filetracker_update(STREAM_TOSERVER, &gap, new_gap_size);
             if consumed2 > new_gap_size {
-                SCLogDebug!("consumed more than GAP size: {} > {}", consumed2, new_gap_size);
+                debug!("consumed more than GAP size: {} > {}", consumed2, new_gap_size);
                 self.set_event(SMBEvent::InternalError);
                 return 1;
             }
         }
-        SCLogDebug!("GAP of size {} in toserver direction", gap_size);
+        debug!("GAP of size {} in toserver direction", gap_size);
         self.ts_ssn_gap = true;
         self.ts_gap = true;
         return 0
@@ -1725,37 +1724,37 @@ impl SMBState {
 
             let consumed2 = self.filetracker_update(STREAM_TOCLIENT, &gap, new_gap_size);
             if consumed2 > new_gap_size {
-                SCLogDebug!("consumed more than GAP size: {} > {}", consumed2, new_gap_size);
+                debug!("consumed more than GAP size: {} > {}", consumed2, new_gap_size);
                 self.set_event(SMBEvent::InternalError);
                 return 1;
             }
         }
-        SCLogDebug!("GAP of size {} in toclient direction", gap_size);
+        debug!("GAP of size {} in toclient direction", gap_size);
         self.tc_ssn_gap = true;
         self.tc_gap = true;
         return 0
     }
 
     pub fn trunc_ts(&mut self) {
-        SCLogDebug!("TRUNC TS");
+        debug!("TRUNC TS");
         self.ts_trunc = true;
         self.tcp_buffer_ts.clear();
 
         for tx in &mut self.transactions {
             if !tx.request_done {
-                SCLogDebug!("TRUNCING TX {} in TOSERVER direction", tx.id);
+                debug!("TRUNCING TX {} in TOSERVER direction", tx.id);
                 tx.request_done = true;
             }
        }
     }
     pub fn trunc_tc(&mut self) {
-        SCLogDebug!("TRUNC TC");
+        debug!("TRUNC TC");
         self.tc_trunc = true;
         self.tcp_buffer_tc.clear();
 
         for tx in &mut self.transactions {
             if !tx.response_done {
-                SCLogDebug!("TRUNCING TX {} in TOCLIENT direction", tx.id);
+                debug!("TRUNCING TX {} in TOCLIENT direction", tx.id);
                 tx.response_done = true;
             }
         }
@@ -1767,7 +1766,7 @@ impl SMBState {
 pub extern "C" fn rs_smb_state_new() -> *mut libc::c_void {
     let state = SMBState::new();
     let boxed = Box::new(state);
-    SCLogDebug!("allocating state");
+    debug!("allocating state");
     return unsafe{transmute(boxed)};
 }
 
@@ -1776,7 +1775,7 @@ pub extern "C" fn rs_smb_state_new() -> *mut libc::c_void {
 #[no_mangle]
 pub extern "C" fn rs_smb_state_free(state: *mut libc::c_void) {
     // Just unbox...
-    SCLogDebug!("freeing state");
+    debug!("freeing state");
     let mut smb_state: Box<SMBState> = unsafe{transmute(state)};
     smb_state.free();
 }
@@ -1793,7 +1792,7 @@ pub extern "C" fn rs_smb_parse_request_tcp(_flow: *mut Flow,
                                        -> libc::int8_t
 {
     let buf = unsafe{std::slice::from_raw_parts(input, input_len as usize)};
-    SCLogDebug!("parsing {} bytes of request data", input_len);
+    debug!("parsing {} bytes of request data", input_len);
 
     /* START with MISTREAM set: record might be starting the middle. */
     if flags & (STREAM_START|STREAM_MIDSTREAM) == (STREAM_START|STREAM_MIDSTREAM) {
@@ -1830,7 +1829,7 @@ pub extern "C" fn rs_smb_parse_response_tcp(_flow: *mut Flow,
                                         flags: u8)
                                         -> libc::int8_t
 {
-    SCLogDebug!("parsing {} bytes of response data", input_len);
+    debug!("parsing {} bytes of response data", input_len);
     let buf = unsafe{std::slice::from_raw_parts(input, input_len as usize)};
 
     /* START with MISTREAM set: record might be starting the middle. */
@@ -1866,26 +1865,26 @@ pub extern "C" fn rs_smb_probe_tcp(input: *const libc::uint8_t, len: libc::uint3
     let slice = build_slice!(input, len as usize);
     match search_smb_record(slice) {
         IResult::Done(_, _) => {
-            SCLogDebug!("smb found");
+            debug!("smb found");
             return 1;
         },
         _ => {
-            SCLogDebug!("smb not found in {:?}", slice);
+            debug!("smb not found in {:?}", slice);
         },
     }
     match parse_nbss_record_partial(slice) {
         IResult::Done(_, ref hdr) => {
             if hdr.is_smb() {
-                SCLogDebug!("smb found");
+                debug!("smb found");
                 return 1;
             } else if hdr.is_valid() {
-                SCLogDebug!("nbss found, assume smb");
+                debug!("nbss found, assume smb");
                 return 1;
             }
         },
         _ => { },
     }
-    SCLogDebug!("no smb");
+    debug!("no smb");
     return -1
 }
 
@@ -1893,7 +1892,7 @@ pub extern "C" fn rs_smb_probe_tcp(input: *const libc::uint8_t, len: libc::uint3
 pub extern "C" fn rs_smb_state_get_tx_count(state: &mut SMBState)
                                             -> libc::uint64_t
 {
-    SCLogDebug!("rs_smb_state_get_tx_count: returning {}", state.tx_id);
+    debug!("rs_smb_state_get_tx_count: returning {}", state.tx_id);
     return state.tx_id;
 }
 
@@ -1936,7 +1935,7 @@ pub extern "C" fn rs_smb_state_get_tx_iterator(
 pub extern "C" fn rs_smb_state_tx_free(state: &mut SMBState,
                                        tx_id: libc::uint64_t)
 {
-    SCLogDebug!("freeing tx {}", tx_id as u64);
+    debug!("freeing tx {}", tx_id as u64);
     state.free_tx(tx_id);
 }
 
@@ -1954,13 +1953,13 @@ pub extern "C" fn rs_smb_tx_get_alstate_progress(tx: &mut SMBTransaction,
                                                   -> libc::uint8_t
 {
     if direction == STREAM_TOSERVER && tx.request_done {
-        SCLogDebug!("tx {} TOSERVER progress 1 => {:?}", tx.id, tx);
+        debug!("tx {} TOSERVER progress 1 => {:?}", tx.id, tx);
         return 1;
     } else if direction == STREAM_TOCLIENT && tx.response_done {
-        SCLogDebug!("tx {} TOCLIENT progress 1 => {:?}", tx.id, tx);
+        debug!("tx {} TOCLIENT progress 1 => {:?}", tx.id, tx);
         return 1;
     } else {
-        SCLogDebug!("tx {} direction {} progress 0", tx.id, direction);
+        debug!("tx {} direction {} progress 0", tx.id, direction);
         return 0;
     }
 }

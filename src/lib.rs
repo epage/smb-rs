@@ -18,6 +18,8 @@
 #[macro_use]
 extern crate nom;
 extern crate der_parser;
+#[macro_use]
+extern crate log;
 
 pub mod smb_records;
 pub mod smb1_records;

@@ -17,8 +17,6 @@
 
 use nom::{IResult};
 
-use log::*;
-
 use smb_records::*;
 use smb1_records::*;
 use smb::*;
@@ -58,7 +56,7 @@ pub fn smb1_session_setup_request_host_info(r: &SmbRecord, blob: &[u8]) -> Sessi
                 _ => { (Vec::new(), Vec::new(), Vec::new()) },
         };
 
-        SCLogDebug!("name1 {:?} name2 {:?} name3 {:?}", native_os,native_lm,primary_domain);
+        debug!("name1 {:?} name2 {:?} name3 {:?}", native_os,native_lm,primary_domain);
         SessionSetupRequest {
             native_os:native_os,
             native_lm:native_lm,
@@ -80,7 +78,7 @@ pub fn smb1_session_setup_request_host_info(r: &SmbRecord, blob: &[u8]) -> Sessi
                 _ => { (Vec::new(), Vec::new(), Vec::new()) },
         };
 
-        SCLogDebug!("session_setup_request_host_info: not unicode");
+        debug!("session_setup_request_host_info: not unicode");
         SessionSetupRequest {
             native_os: native_os,
             native_lm: native_lm,
@@ -104,13 +102,13 @@ pub fn smb1_session_setup_response_host_info(r: &SmbRecord, blob: &[u8]) -> Sess
             _ => { (Vec::new(), Vec::new()) },
         };
 
-        SCLogDebug!("name1 {:?} name2 {:?}", native_os,native_lm);
+        debug!("name1 {:?} name2 {:?}", native_os,native_lm);
         SessionSetupResponse {
             native_os:native_os,
             native_lm:native_lm,
         }
     } else {
-        SCLogDebug!("session_setup_response_host_info: not unicode");
+        debug!("session_setup_response_host_info: not unicode");
         let (native_os, native_lm) = match smb_get_ascii_string(blob) {
             IResult::Done(rem, n1) => {
                 match smb_get_ascii_string(rem) {
@@ -129,7 +127,7 @@ pub fn smb1_session_setup_response_host_info(r: &SmbRecord, blob: &[u8]) -> Sess
 
 pub fn smb1_session_setup_request(state: &mut SMBState, r: &SmbRecord)
 {
-    SCLogDebug!("SMB1_COMMAND_SESSION_SETUP_ANDX user_id {}", r.user_id);
+    debug!("SMB1_COMMAND_SESSION_SETUP_ANDX user_id {}", r.user_id);
     match parse_smb_setup_andx_record(r.data) {
         IResult::Done(rem, setup) => {
             let hdr = SMBCommonHdr::new(SMBHDR_TYPE_HEADER,
@@ -181,7 +179,7 @@ pub fn smb1_session_setup_response(state: &mut SMBState, r: &SmbRecord)
     {
         Some(tx) => {
             smb1_session_setup_update_tx(tx, r);
-            SCLogDebug!("smb1_session_setup_response: tx {:?}", tx);
+            debug!("smb1_session_setup_response: tx {:?}", tx);
             true
         },
         None => { false },
@@ -193,10 +191,10 @@ pub fn smb1_session_setup_response(state: &mut SMBState, r: &SmbRecord)
         {
             Some(tx) => {
                 smb1_session_setup_update_tx(tx, r);
-                SCLogDebug!("smb1_session_setup_response: tx {:?}", tx);
+                debug!("smb1_session_setup_response: tx {:?}", tx);
             },
             None => {
-                SCLogDebug!("smb1_session_setup_response: tx not found for {:?}", r);
+                debug!("smb1_session_setup_response: tx not found for {:?}", r);
             },
         }
     }
