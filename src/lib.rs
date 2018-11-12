@@ -35,7 +35,7 @@ pub mod smb2_ioctl;
 pub mod smb3;
 pub mod dcerpc;
 pub mod session;
-pub mod log;
+pub mod dump;
 pub mod detect;
 pub mod debug;
 pub mod events;
