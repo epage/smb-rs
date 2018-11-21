@@ -15,9 +15,7 @@
  * 02110-1301, USA.
  */
 
-use core::*;
-use log::*;
-use smb::smb::*;
+use smb::*;
 
 #[repr(u32)]
 pub enum SMBEvent {
@@ -31,7 +29,7 @@ pub enum SMBEvent {
 }
 
 pub fn smb_str_to_event(instr: &str) -> i32 {
-    SCLogDebug!("checking {}", instr);
+    debug!("checking {}", instr);
     match instr {
         "internal_error"                => SMBEvent::InternalError as i32,
         "malformed_data"                => SMBEvent::MalformedData as i32,
@@ -47,14 +45,10 @@ pub fn smb_str_to_event(instr: &str) -> i32 {
 impl SMBTransaction {
     /// Set event.
     pub fn set_event(&mut self, e: SMBEvent) {
-        sc_app_layer_decoder_events_set_event_raw(&mut self.events, e as u8);
     }
 
     /// Set events from vector of events.
     pub fn set_events(&mut self, events: Vec<SMBEvent>) {
-        for e in events {
-            sc_app_layer_decoder_events_set_event_raw(&mut self.events, e as u8);
-        }
     }
 }
 

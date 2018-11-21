@@ -17,16 +17,14 @@
 
 use nom::{IResult};
 
-use log::*;
-
-use smb::smb2_records::*;
-use smb::smb::*;
-//use smb::events::*;
-use smb::auth::*;
+use smb2_records::*;
+use smb::*;
+//use events::*;
+use auth::*;
 
 pub fn smb2_session_setup_request(state: &mut SMBState, r: &Smb2Record)
 {
-    SCLogDebug!("SMB2_COMMAND_SESSION_SETUP: r.data.len() {}", r.data.len());
+    debug!("SMB2_COMMAND_SESSION_SETUP: r.data.len() {}", r.data.len());
     match parse_smb2_request_session_setup(r.data) {
         IResult::Done(_, setup) => {
             let hdr = SMBCommonHdr::from2(r, SMBHDR_TYPE_HEADER);
@@ -61,7 +59,7 @@ pub fn smb2_session_setup_response(state: &mut SMBState, r: &Smb2Record)
     {
         Some(tx) => {
             smb2_session_setup_update_tx(tx, r);
-            SCLogDebug!("smb2_session_setup_response: tx {:?}", tx);
+            debug!("smb2_session_setup_response: tx {:?}", tx);
             true
         },
         None => { false },
@@ -73,10 +71,10 @@ pub fn smb2_session_setup_response(state: &mut SMBState, r: &Smb2Record)
         {
             Some(tx) => {
                 smb2_session_setup_update_tx(tx, r);
-                SCLogDebug!("smb2_session_setup_response: tx {:?}", tx);
+                debug!("smb2_session_setup_response: tx {:?}", tx);
             },
             None => {
-                SCLogDebug!("smb2_session_setup_response: tx not found for {:?}", r);
+                debug!("smb2_session_setup_response: tx not found for {:?}", r);
             },
         }
     }

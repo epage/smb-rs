@@ -16,26 +16,25 @@
  */
 
 use nom::{IResult, ErrorKind};
-use log::*;
 
 /// parse a UTF16 string that is null terminated. Normally by 2 null
 /// bytes, but at the end of the data it can also be a single null.
 /// Skip every second byte.
 pub fn smb_get_unicode_string(blob: &[u8]) -> IResult<&[u8], Vec<u8>>
 {
-    SCLogDebug!("get_unicode_string: blob {} {:?}", blob.len(), blob);
+    debug!("get_unicode_string: blob {} {:?}", blob.len(), blob);
     let mut name : Vec<u8> = Vec::new();
     let mut c = blob;
     while c.len() >= 1 {
         if c.len() == 1 && c[0] == 0 {
             let rem = &c[1..];
-            SCLogDebug!("get_unicode_string: name {:?}", name);
+            debug!("get_unicode_string: name {:?}", name);
             return IResult::Done(rem, name)
         } else if c.len() == 1 {
             break;
         } else if c[0] == 0 && c[1] == 0 {
             let rem = &c[2..];
-            SCLogDebug!("get_unicode_string: name {:?}", name);
+            debug!("get_unicode_string: name {:?}", name);
             return IResult::Done(rem, name)
         }
         name.push(c[0]);

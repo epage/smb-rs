@@ -15,36 +15,36 @@
  * 02110-1301, USA.
  */
 
-#[macro_use]
-extern crate nom;
-extern crate der_parser;
-extern crate kerberos_parser;
-#[macro_use]
-extern crate log;
-extern crate serde_json;
+pub struct SuricataFileContext();
 
-pub mod smb_records;
-pub mod smb1_records;
-pub mod smb2_records;
-pub mod nbss_records;
-pub mod dcerpc_records;
-pub mod ntlmssp_records;
+pub struct File;
+#[repr(C)]
+#[derive(Debug)]
+pub struct FileContainer {
+}
 
-pub mod smb;
-pub mod smb1;
-pub mod smb1_session;
-pub mod smb2;
-pub mod smb2_session;
-pub mod smb2_ioctl;
-pub mod smb3;
-pub mod dcerpc;
-pub mod session;
-pub mod dump;
-pub mod debug;
-pub mod events;
-pub mod auth;
-pub mod files;
-pub mod funcs;
-pub mod kerberos;
-pub mod filecontainer;
-pub mod filetracker;
+impl FileContainer {
+    pub fn default() -> FileContainer {
+        FileContainer {  }
+    }
+    pub fn free(&mut self) {
+    }
+
+    pub fn file_open(&mut self, cfg: &'static SuricataFileContext, track_id: &u32, name: &[u8], flags: u16) -> i32 {
+        0
+    }
+
+    pub fn file_append(&mut self, track_id: &u32, data: &[u8], is_gap: bool) -> i32 {
+        0
+    }
+
+    pub fn file_close(&mut self, track_id: &u32, flags: u16) -> i32 {
+        0
+    }
+
+    pub fn files_prune(&mut self) {
+    }
+
+    pub fn file_set_txid_on_last_file(&mut self, tx_id: u64) {
+    }
+}

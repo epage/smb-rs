@@ -15,12 +15,9 @@
  * 02110-1301, USA.
  */
 
-use core::*;
-use log::*;
-use filetracker::*;
+use smb::*;
 use filecontainer::*;
-
-use smb::smb::*;
+use filetracker::*;
 
 /// File tracking transaction. Single direction only.
 #[derive(Debug)]
@@ -105,7 +102,7 @@ impl SMBState {
             },
             _ => { },
         }
-        SCLogDebug!("SMB: new_file_tx: TX FILE created: ID {} NAME {}",
+        debug!("SMB: new_file_tx: TX FILE created: ID {} NAME {}",
                 tx.id, String::from_utf8_lossy(file_name));
         self.transactions.push(tx);
         let tx_ref = self.transactions.last_mut();
@@ -126,17 +123,17 @@ impl SMBState {
             };
 
             if found {
-                SCLogDebug!("SMB: Found SMB file TX with ID {}", tx.id);
+                debug!("SMB: Found SMB file TX with ID {}", tx.id);
                 let (files, flags) = self.files.get(direction);
                 return Some((tx, files, flags));
             }
         }
-        SCLogDebug!("SMB: Failed to find SMB TX with FUID {:?}", fuid);
+        debug!("SMB: Failed to find SMB TX with FUID {:?}", fuid);
         return None;
     }
 
     fn getfiles(&mut self, direction: u8) -> * mut FileContainer {
-        //SCLogDebug!("direction: {}", direction);
+        //debug!("direction: {}", direction);
         if direction == STREAM_TOCLIENT {
             &mut self.files.files_tc as *mut FileContainer
         } else {
@@ -144,7 +141,7 @@ impl SMBState {
         }
     }
     fn setfileflags(&mut self, direction: u8, flags: u16) {
-        SCLogDebug!("direction: {}, flags: {}", direction, flags);
+        debug!("direction: {}, flags: {}", direction, flags);
         if direction == 1 {
             self.files.flags_tc = flags;
         } else {
@@ -163,7 +160,7 @@ impl SMBState {
         if chunk_left == 0 {
             return 0
         }
-        SCLogDebug!("chunk_left {} data {}", chunk_left, data.len());
+        debug!("chunk_left {} data {}", chunk_left, data.len());
         let file_handle = if direction == STREAM_TOSERVER {
             self.file_ts_guid.to_vec()
         } else {
@@ -196,7 +193,7 @@ impl SMBState {
                     if ssn_gap {
                         let queued_data = tdf.file_tracker.get_queued_size();
                         if queued_data > 2000000 { // TODO should probably be configurable
-                            SCLogDebug!("QUEUED size {} while we've seen GAPs. Truncating file.", queued_data);
+                            debug!("QUEUED size {} while we've seen GAPs. Truncating file.", queued_data);
                             tdf.file_tracker.trunc(files, flags);
                         }
                     }
@@ -209,25 +206,10 @@ impl SMBState {
                 }
             },
             None => {
-                SCLogDebug!("not found for handle {:?}", file_handle);
+                debug!("not found for handle {:?}", file_handle);
                 0 },
         };
 
         return consumed;
     }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_getfiles(direction: u8, ptr: *mut SMBState) -> * mut FileContainer {
-    if ptr.is_null() { panic!("NULL ptr"); };
-    let parser = unsafe { &mut *ptr };
-    parser.getfiles(direction)
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_setfileflags(direction: u8, ptr: *mut SMBState, flags: u16) {
-    if ptr.is_null() { panic!("NULL ptr"); };
-    let parser = unsafe { &mut *ptr };
-    SCLogDebug!("direction {} flags {}", direction, flags);
-    parser.setfileflags(direction, flags)
 }
