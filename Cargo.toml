@@ -1,0 +1,17 @@
+[workspace]
+members = ["smb-parser"]
+
+[package]
+name = "smb"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+description = "User-mode SMB client for Rust (blocking)t"
+repository = "https://github.com/epage/smb-rs"
+homepage = "https://github.com/epage/smb-rs"
+readme = "README.md"
+categories = ["development-tools::build-utils"]
+keywords = ["smb"]
+
+[dependencies]
+smb-parser = { "path" = "smb-parser" }
+mio = "0.6"

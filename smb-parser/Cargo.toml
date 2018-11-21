@@ -1,6 +1,10 @@
 [package]
 name = "smb-parser"
 version = "0.1.0"
+license = "GPL-2.0-only"
+readme = "README.md"
+categories = ["development-tools::build-utils"]
+keywords = ["smb"]
 
 [dependencies]
 nom = "3.2.1"
