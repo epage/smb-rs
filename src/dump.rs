@@ -15,11 +15,10 @@
  * 02110-1301, USA.
  */
 
-extern crate libc;
-
 use std::str;
 use std::string::String;
-use json::*;
+use serde_json::Value;
+use serde_json::map::Map;
 use smb::*;
 use smb1::*;
 use smb2::*;
@@ -27,12 +26,12 @@ use dcerpc::*;
 use funcs::*;
 
 #[cfg(not(feature = "debug"))]
-fn debug_add_progress(_js: &Json, _tx: &SMBTransaction) { }
+fn debug_add_progress(_js: &mut Map<String, Value>, _tx: &SMBTransaction) { }
 
 #[cfg(feature = "debug")]
-fn debug_add_progress(js: &Json, tx: &SMBTransaction) {
-    js.set_boolean("request_done", tx.request_done);
-    js.set_boolean("response_done", tx.request_done);
+fn debug_add_progress(js: &mut Map, tx: &SMBTransaction) {
+    js.insert("request_done".to_owned(), Value::Bool(tx.request_done));
+    js.insert("response_done".to_owned(), Value::Bool(tx.request_done));
 }
 
 /// take in a file GUID (16 bytes) or FID (2 bytes). Also deal
@@ -64,33 +63,33 @@ fn guid_to_string(guid: &Vec<u8>) -> String {
     }
 }
 
-fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Json
+fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Value
 {
-    let js = Json::object();
-    js.set_integer("id", tx.id as u64);
+    let mut js = Map::new();
+    js.insert("id".to_owned(), Value::Number(tx.id.into()));
 
     if state.dialect != 0 {
-        let dialect = &smb2_dialect_string(state.dialect);
-        js.set_string("dialect", &dialect);
+        let dialect = smb2_dialect_string(state.dialect);
+        js.insert("dialect".to_owned(), Value::String(dialect));
     } else {
         let dialect = match &state.dialect_vec {
             &Some(ref d) => str::from_utf8(&d).unwrap_or("invalid"),
             &None        => "unknown",
         };
-        js.set_string("dialect", &dialect);
+        js.insert("dialect".to_owned(), Value::String(dialect.to_owned()));
     }
 
     match tx.vercmd.get_version() {
         1 => {
             let (ok, cmd) = tx.vercmd.get_smb1_cmd();
             if ok {
-                js.set_string("command", &smb1_command_string(cmd));
+                js.insert("command".to_owned(), Value::String(smb1_command_string(cmd)));
             }
         },
         2 => {
             let (ok, cmd) = tx.vercmd.get_smb2_cmd();
             if ok {
-                js.set_string("command", &smb2_command_string(cmd));
+                js.insert("command".to_owned(), Value::String(smb2_command_string(cmd)));
             }
         },
         _ => { },
@@ -99,9 +98,9 @@ fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Json
     match tx.vercmd.get_ntstatus() {
         (true, ntstatus) => {
             let status = smb_ntstatus_string(ntstatus);
-            js.set_string("status", &status);
+            js.insert("status".to_owned(), Value::String(status));
             let status_hex = format!("0x{:x}", ntstatus);
-            js.set_string("status_code", &status_hex);
+            js.insert("status_code".to_owned(), Value::String(status_hex));
         },
         (false, _) => {
             match tx.vercmd.get_dos_error() {
@@ -109,19 +108,19 @@ fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Json
                     match errclass {
                         1 => { // DOSERR
                             let status = smb_dos_error_string(errcode);
-                            js.set_string("status", &status);
+                            js.insert("status".to_owned(), Value::String(status));
                         },
                         2 => { // SRVERR
                             let status = smb_srv_error_string(errcode);
-                            js.set_string("status", &status);
+                            js.insert("status".to_owned(), Value::String(status));
                         }
                         _ => {
                             let s = format!("UNKNOWN_{:02x}_{:04x}", errclass, errcode);
-                            js.set_string("status", &s);
+                            js.insert("status".to_owned(), Value::String(s));
                         },
                     }
                     let status_hex = format!("0x{:04x}", errcode);
-                    js.set_string("status_code", &status_hex);
+                    js.insert("status_code".to_owned(), Value::String(status_hex));
                 },
                 (_, _, _) => {
                 },
@@ -130,61 +129,61 @@ fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Json
     }
 
 
-    js.set_integer("session_id", tx.hdr.ssn_id);
-    js.set_integer("tree_id", tx.hdr.tree_id as u64);
+    js.insert("session_id".to_owned(), Value::Number(tx.hdr.ssn_id.into()));
+    js.insert("tree_id".to_owned(), Value::Number(tx.hdr.tree_id.into()));
 
-    debug_add_progress(&js, tx);
+    debug_add_progress(&mut js, tx);
 
     match tx.type_data {
         Some(SMBTransactionTypeData::SESSIONSETUP(ref x)) => {
             if let Some(ref ntlmssp) = x.ntlmssp {
-                let jsd = Json::object();
+                let mut jsd = Map::new();
                 let domain = String::from_utf8_lossy(&ntlmssp.domain);
-                jsd.set_string("domain", &domain);
+                jsd.insert("domain".to_owned(), Value::String(domain.into_owned()));
 
                 let user = String::from_utf8_lossy(&ntlmssp.user);
-                jsd.set_string("user", &user);
+                jsd.insert("user".to_owned(), Value::String(user.into_owned()));
 
                 let host = String::from_utf8_lossy(&ntlmssp.host);
-                jsd.set_string("host", &host);
+                jsd.insert("host".to_owned(), Value::String(host.into_owned()));
 
                 if let Some(ref v) = ntlmssp.version {
-                    jsd.set_string("version", v.to_string().as_str());
+                    jsd.insert("version".to_owned(), Value::String(v.to_string()));
                 }
 
-                js.set("ntlmssp", jsd);
+                js.insert("ntlmssp".to_owned(), Value::Object(jsd));
             }
 
             if let Some(ref ticket) = x.krb_ticket {
-                let jsd = Json::object();
-                jsd.set_string("realm", &ticket.realm.0);
-                let jsa = Json::array();
+                let mut jsd = Map::new();
+                jsd.insert("realm".to_owned(), Value::String(ticket.realm.0.to_owned()));
+                let mut jsa = Vec::new();
                 for sname in ticket.sname.name_string.iter() {
-                    jsa.array_append_string(&sname);
+                    jsa.push(Value::String(sname.to_owned()));
                 }
-                jsd.set("snames", jsa);
-                js.set("kerberos", jsd);
+                jsd.insert("snames".to_owned(), Value::Array(jsa));
+                js.insert("kerberos".to_owned(), Value::Object(jsd));
             }
 
             match x.request_host {
                 Some(ref r) => {
-                    let jsd = Json::object();
+                    let mut jsd = Map::new();
                     let os = String::from_utf8_lossy(&r.native_os);
-                    jsd.set_string("native_os", &os);
+                    jsd.insert("native_os".to_owned(), Value::String(os.into_owned()));
                     let lm = String::from_utf8_lossy(&r.native_lm);
-                    jsd.set_string("native_lm", &lm);
-                    js.set("request", jsd);
+                    jsd.insert("native_lm".to_owned(), Value::String(lm.into_owned()));
+                    js.insert("request".to_owned(), Value::Object(jsd));
                 },
                 None => { },
             }
             match x.response_host {
                 Some(ref r) => {
-                    let jsd = Json::object();
+                    let mut jsd = Map::new();
                     let os = String::from_utf8_lossy(&r.native_os);
-                    jsd.set_string("native_os", &os);
+                    jsd.insert("native_os".to_owned(), Value::String(os.into_owned()));
                     let lm = String::from_utf8_lossy(&r.native_lm);
-                    jsd.set_string("native_lm", &lm);
-                    js.set("response", jsd);
+                    jsd.insert("native_lm".to_owned(), Value::String(lm.into_owned()));
+                    js.insert("response".to_owned(), Value::Object(jsd));
                 },
                 None => { },
             }
@@ -195,162 +194,162 @@ fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Json
             if name_raw.len() > 0 {
                 let name = String::from_utf8_lossy(&name_raw);
                 if x.directory {
-                    js.set_string("directory", &name);
+                    js.insert("directory".to_owned(), Value::String(name.into_owned()));
                 } else {
-                    js.set_string("filename", &name);
+                    js.insert("filename".to_owned(), Value::String(name.into_owned()));
                 }
             } else {
                 // name suggestion from Bro
-                js.set_string("filename", "<share_root>");
+                js.insert("filename".to_owned(), Value::String("<share_root>".to_owned()));
             }
             match x.disposition {
-                0 => { js.set_string("disposition", "FILE_SUPERSEDE"); },
-                1 => { js.set_string("disposition", "FILE_OPEN"); },
-                2 => { js.set_string("disposition", "FILE_CREATE"); },
-                3 => { js.set_string("disposition", "FILE_OPEN_IF"); },
-                4 => { js.set_string("disposition", "FILE_OVERWRITE"); },
-                5 => { js.set_string("disposition", "FILE_OVERWRITE_IF"); },
-                _ => { js.set_string("disposition", "UNKNOWN"); },
+                0 => { js.insert("disposition".to_owned(), Value::String("FILE_SUPERSEDE".to_owned())); },
+                1 => { js.insert("disposition".to_owned(), Value::String("FILE_OPEN".to_owned())); },
+                2 => { js.insert("disposition".to_owned(), Value::String("FILE_CREATE".to_owned())); },
+                3 => { js.insert("disposition".to_owned(), Value::String("FILE_OPEN_IF".to_owned())); },
+                4 => { js.insert("disposition".to_owned(), Value::String("FILE_OVERWRITE".to_owned())); },
+                5 => { js.insert("disposition".to_owned(), Value::String("FILE_OVERWRITE_IF".to_owned())); },
+                _ => { js.insert("disposition".to_owned(), Value::String("UNKNOWN".to_owned())); },
             }
             if x.delete_on_close {
-                js.set_string("access", "delete on close");
+                js.insert("access".to_owned(), Value::String("delete on close".to_owned()));
             } else {
-                js.set_string("access", "normal");
+                js.insert("access".to_owned(), Value::String("normal".to_owned()));
             }
 
             // field names inspired by Bro
-            js.set_integer("created", x.create_ts as u64);
-            js.set_integer("accessed", x.last_access_ts as u64);
-            js.set_integer("modified", x.last_write_ts as u64);
-            js.set_integer("changed", x.last_change_ts as u64);
-            js.set_integer("size", x.size);
+            js.insert("created".to_owned(), Value::Number((x.create_ts as u64).into()));
+            js.insert("accessed".to_owned(), Value::Number((x.last_access_ts as u64).into()));
+            js.insert("modified".to_owned(), Value::Number((x.last_write_ts as u64).into()));
+            js.insert("changed".to_owned(), Value::Number((x.last_change_ts as u64).into()));
+            js.insert("size".to_owned(), Value::Number((x.size).into()));
 
             let gs = fuid_to_string(&x.guid);
-            js.set_string("fuid", &gs);
+            js.insert("fuid".to_owned(), Value::String(gs));
         },
         Some(SMBTransactionTypeData::NEGOTIATE(ref x)) => {
             if x.smb_ver == 1 {
-                let jsa = Json::array();
+                let mut jsa = Vec::new();
                 for d in &x.dialects {
                     let dialect = String::from_utf8_lossy(&d);
-                    jsa.array_append_string(&dialect);
+                    jsa.push(Value::String(dialect.into_owned()));
                 }
-                js.set("client_dialects", jsa);
+                js.insert("client_dialects".to_owned(), Value::Array(jsa));
             } else if x.smb_ver == 2 {
-                let jsa = Json::array();
+                let mut jsa = Vec::new();
                 for d in &x.dialects2 {
                     let dialect = String::from_utf8_lossy(&d);
-                    jsa.array_append_string(&dialect);
+                    jsa.push(Value::String(dialect.into_owned()));
                 }
-                js.set("client_dialects", jsa);
+                js.insert("client_dialects".to_owned(), Value::Array(jsa));
             }
 
             if let Some(ref g) = x.client_guid {
-                js.set_string("client_guid", &guid_to_string(g));
+                js.insert("client_guid".to_owned(), Value::String(guid_to_string(g)));
             }
 
-            js.set_string("server_guid", &guid_to_string(&x.server_guid));
+            js.insert("server_guid".to_owned(), Value::String(guid_to_string(&x.server_guid)));
         },
         Some(SMBTransactionTypeData::TREECONNECT(ref x)) => {
-            js.set_integer("tree_id", x.tree_id as u64);
+            js.insert("tree_id".to_owned(), Value::Number((x.tree_id as u64).into()));
 
             let share_name = String::from_utf8_lossy(&x.share_name);
             if x.is_pipe {
-                js.set_string("named_pipe", &share_name);
+                js.insert("named_pipe".to_owned(), Value::String(share_name.into_owned()));
             } else {
-                js.set_string("share", &share_name);
+                js.insert("share".to_owned(), Value::String(share_name.into_owned()));
             }
 
             // handle services
             if tx.vercmd.get_version() == 1 {
-                let jsd = Json::object();
+                let mut jsd = Map::new();
 
                 if let Some(ref s) = x.req_service {
                     let serv = String::from_utf8_lossy(&s);
-                    jsd.set_string("request", &serv);
+                    jsd.insert("request".to_owned(), Value::String(serv.into_owned()));
                 }
                 if let Some(ref s) = x.res_service {
                     let serv = String::from_utf8_lossy(&s);
-                    jsd.set_string("response", &serv);
+                    jsd.insert("response".to_owned(), Value::String(serv.into_owned()));
                 }
-                js.set("service", jsd);
+                js.insert("service".to_owned(), Value::Object(jsd));
 
             // share type only for SMB2
             } else {
                 match x.share_type {
-                    1 => { js.set_string("share_type", "FILE"); },
-                    2 => { js.set_string("share_type", "PIPE"); },
-                    3 => { js.set_string("share_type", "PRINT"); },
-                    _ => { js.set_string("share_type", "UNKNOWN"); },
+                    1 => { js.insert("share_type".to_owned(), Value::String("FILE".to_owned())); },
+                    2 => { js.insert("share_type".to_owned(), Value::String("PIPE".to_owned())); },
+                    3 => { js.insert("share_type".to_owned(), Value::String("PRINT".to_owned())); },
+                    _ => { js.insert("share_type".to_owned(), Value::String("UNKNOWN".to_owned())); },
                 }
             }
         },
         Some(SMBTransactionTypeData::FILE(ref x)) => {
             let file_name = String::from_utf8_lossy(&x.file_name);
-            js.set_string("filename", &file_name);
+            js.insert("filename".to_owned(), Value::String(file_name.into_owned()));
             let share_name = String::from_utf8_lossy(&x.share_name);
-            js.set_string("share", &share_name);
+            js.insert("share".to_owned(), Value::String(share_name.into_owned()));
             let gs = fuid_to_string(&x.fuid);
-            js.set_string("fuid", &gs);
+            js.insert("fuid".to_owned(), Value::String(gs));
         },
         Some(SMBTransactionTypeData::RENAME(ref x)) => {
             if tx.vercmd.get_version() == 2 {
-                let jsd = Json::object();
-                jsd.set_string("class", "FILE_INFO");
-                jsd.set_string("info_level", "SMB2_FILE_RENAME_INFO");
-                js.set("set_info", jsd);
+                let mut jsd = Map::new();
+                jsd.insert("class".to_owned(), Value::String("FILE_INFO".to_owned()));
+                jsd.insert("info_level".to_owned(), Value::String("SMB2_FILE_RENAME_INFO".to_owned()));
+                js.insert("set_info".to_owned(), Value::Object(jsd));
             }
 
-            let jsd = Json::object();
+            let mut jsd = Map::new();
             let file_name = String::from_utf8_lossy(&x.oldname);
-            jsd.set_string("from", &file_name);
+            jsd.insert("from".to_owned(), Value::String(file_name.into_owned()));
             let file_name = String::from_utf8_lossy(&x.newname);
-            jsd.set_string("to", &file_name);
-            js.set("rename", jsd);
+            jsd.insert("to".to_owned(), Value::String(file_name.into_owned()));
+            js.insert("rename".to_owned(), Value::Object(jsd));
             let gs = fuid_to_string(&x.fuid);
-            js.set_string("fuid", &gs);
+            js.insert("fuid".to_owned(), Value::String(gs));
         },
         Some(SMBTransactionTypeData::DCERPC(ref x)) => {
-            let jsd = Json::object();
+            let mut jsd = Map::new();
             if x.req_set {
-                jsd.set_string("request", &dcerpc_type_string(x.req_cmd));
+                jsd.insert("request".to_owned(), Value::String(dcerpc_type_string(x.req_cmd)));
             } else {
-                jsd.set_string("request", "REQUEST_LOST");
+                jsd.insert("request".to_owned(), Value::String("REQUEST_LOST".to_owned()));
             }
             if x.res_set {
-                jsd.set_string("response", &dcerpc_type_string(x.res_cmd));
+                jsd.insert("response".to_owned(), Value::String(dcerpc_type_string(x.res_cmd)));
             } else {
-                jsd.set_string("response", "UNREPLIED");
+                jsd.insert("response".to_owned(), Value::String("UNREPLIED".to_owned()));
             }
             if x.req_set {
                 match x.req_cmd {
                     DCERPC_TYPE_REQUEST => {
-                        jsd.set_integer("opnum", x.opnum as u64);
-                        let req = Json::object();
-                        req.set_integer("frag_cnt", x.frag_cnt_ts as u64);
-                        req.set_integer("stub_data_size", x.stub_data_ts.len() as u64);
-                        jsd.set("req", req);
+                        jsd.insert("opnum".to_owned(), Value::Number((x.opnum as u64).into()));
+                        let mut req = Map::new();
+                        req.insert("frag_cnt".to_owned(), Value::Number((x.frag_cnt_ts as u64).into()));
+                        req.insert("stub_data_size".to_owned(), Value::Number((x.stub_data_ts.len() as u64).into()));
+                        jsd.insert("req".to_owned(), Value::Object(req));
                     },
                     DCERPC_TYPE_BIND => {
                         match state.dcerpc_ifaces {
                             Some(ref ifaces) => {
-                                let jsa = Json::array();
+                                let mut jsa = Vec::new();
                                 for i in ifaces {
-                                    let jso = Json::object();
+                                    let mut jso = Map::new();
                                     let ifstr = dcerpc_uuid_to_string(&i);
-                                    jso.set_string("uuid", &ifstr);
+                                    jso.insert("uuid".to_owned(), Value::String(ifstr));
                                     let vstr = format!("{}.{}", i.ver, i.ver_min);
-                                    jso.set_string("version", &vstr);
+                                    jso.insert("version".to_owned(), Value::String(vstr));
 
                                     if i.acked {
-                                        jso.set_integer("ack_result", i.ack_result as u64);
-                                        jso.set_integer("ack_reason", i.ack_reason as u64);
+                                        jso.insert("ack_result".to_owned(), Value::Number((i.ack_result as u64).into()));
+                                        jso.insert("ack_reason".to_owned(), Value::Number((i.ack_reason as u64).into()));
                                     }
 
-                                    jsa.array_append(jso);
+                                    jsa.push(Value::Object(jso));
                                 }
 
-                                jsd.set("interfaces", jsa);
+                                jsd.insert("interfaces".to_owned(), Value::Array(jsa));
                             },
                             _ => {},
                         }
@@ -361,73 +360,58 @@ fn smb_common_header(state: &SMBState, tx: &SMBTransaction) -> Json
             if x.res_set {
                 match x.res_cmd {
                     DCERPC_TYPE_RESPONSE => {
-                        let res = Json::object();
-                        res.set_integer("frag_cnt", x.frag_cnt_tc as u64);
-                        res.set_integer("stub_data_size", x.stub_data_tc.len() as u64);
-                        jsd.set("res", res);
+                        let mut res = Map::new();
+                        res.insert("frag_cnt".to_owned(), Value::Number((x.frag_cnt_tc as u64).into()));
+                        res.insert("stub_data_size".to_owned(), Value::Number((x.stub_data_tc.len() as u64).into()));
+                        jsd.insert("res".to_owned(), Value::Object(res));
                     },
                     // we don't handle BINDACK w/o BIND
                     _ => {},
                 }
             }
-            jsd.set_integer("call_id", x.call_id as u64);
-            js.set("dcerpc", jsd);
+            jsd.insert("call_id".to_owned(), Value::Number((x.call_id as u64).into()));
+            js.insert("dcerpc".to_owned(), Value::Object(jsd));
         }
         Some(SMBTransactionTypeData::IOCTL(ref x)) => {
-            js.set_string("function", &fsctl_func_to_string(x.func));
+            js.insert("function".to_owned(), Value::String(fsctl_func_to_string(x.func)));
         },
         Some(SMBTransactionTypeData::SETFILEPATHINFO(ref x)) => {
             let mut name_raw = x.filename.to_vec();
             name_raw.retain(|&i|i != 0x00);
             if name_raw.len() > 0 {
                 let name = String::from_utf8_lossy(&name_raw);
-                js.set_string("filename", &name);
+                js.insert("filename".to_owned(), Value::String(name.into_owned()));
             } else {
                 // name suggestion from Bro
-                js.set_string("filename", "<share_root>");
+                js.insert("filename".to_owned(), Value::String("<share_root>".to_owned()));
             }
             if x.delete_on_close {
-                js.set_string("access", "delete on close");
+                js.insert("access".to_owned(), Value::String("delete on close".to_owned()));
             } else {
-                js.set_string("access", "normal");
+                js.insert("access".to_owned(), Value::String("normal".to_owned()));
             }
 
             match x.subcmd {
                 8 => {
-                    js.set_string("subcmd", "SET_FILE_INFO");
+                    js.insert("subcmd".to_owned(), Value::String("SET_FILE_INFO".to_owned()));
                 },
                 6 => {
-                    js.set_string("subcmd", "SET_PATH_INFO");
+                    js.insert("subcmd".to_owned(), Value::String("SET_PATH_INFO".to_owned()));
                 },
                 _ => { },
             }
 
             match x.loi {
                 1013 => { // Set Disposition Information
-                    js.set_string("level_of_interest", "Set Disposition Information");
+                    js.insert("level_of_interest".to_owned(), Value::String("Set Disposition Information".to_owned()));
                 },
                 _ => { },
             }
 
             let gs = fuid_to_string(&x.fid);
-            js.set_string("fuid", &gs);
+            js.insert("fuid".to_owned(), Value::String(gs));
         },
         _ => {  },
     }
-    return js;
+    return Value::Object(js);
 }
-
-#[no_mangle]
-pub extern "C" fn rs_smb_log_json_request(state: &mut SMBState, tx: &mut SMBTransaction) -> *mut JsonT
-{
-    let js = smb_common_header(state, tx);
-    return js.unwrap();
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_log_json_response(state: &mut SMBState, tx: &mut SMBTransaction) -> *mut JsonT
-{
-    let js = smb_common_header(state, tx);
-    return js.unwrap();
-}
-

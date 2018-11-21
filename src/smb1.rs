@@ -19,11 +19,7 @@
  * - check all parsers for calls on non-SUCCESS status
  */
 
-extern crate libc;
-
 use nom::{IResult};
-
-use core::*;
 
 use smb::*;
 use dcerpc::*;

@@ -15,11 +15,9 @@
  * 02110-1301, USA.
  */
 
-use core::*;
-use filetracker::*;
-use filecontainer::*;
-
 use smb::*;
+use filecontainer::*;
+use filetracker::*;
 
 /// File tracking transaction. Single direction only.
 #[derive(Debug)]
@@ -214,19 +212,4 @@ impl SMBState {
 
         return consumed;
     }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_getfiles(direction: u8, ptr: *mut SMBState) -> * mut FileContainer {
-    if ptr.is_null() { panic!("NULL ptr"); };
-    let parser = unsafe { &mut *ptr };
-    parser.getfiles(direction)
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_setfileflags(direction: u8, ptr: *mut SMBState, flags: u16) {
-    if ptr.is_null() { panic!("NULL ptr"); };
-    let parser = unsafe { &mut *ptr };
-    debug!("direction {} flags {}", direction, flags);
-    parser.setfileflags(direction, flags)
 }

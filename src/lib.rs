@@ -18,8 +18,10 @@
 #[macro_use]
 extern crate nom;
 extern crate der_parser;
+extern crate kerberos_parser;
 #[macro_use]
 extern crate log;
+extern crate serde_json;
 
 pub mod smb_records;
 pub mod smb1_records;
@@ -38,9 +40,11 @@ pub mod smb3;
 pub mod dcerpc;
 pub mod session;
 pub mod dump;
-pub mod detect;
 pub mod debug;
 pub mod events;
 pub mod auth;
 pub mod files;
 pub mod funcs;
+pub mod kerberos;
+pub mod filecontainer;
+pub mod filetracker;

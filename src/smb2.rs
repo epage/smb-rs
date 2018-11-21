@@ -15,7 +15,6 @@
  * 02110-1301, USA.
  */
 
-use core::*;
 use nom::IResult;
 
 use smb::*;

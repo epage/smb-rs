@@ -24,18 +24,10 @@
  */
 
 // written by Victor Julien
-extern crate libc;
-use std;
-use std::mem::transmute;
 use std::str;
-use std::ffi::CStr;
 
 use nom::IResult;
 use std::collections::HashMap;
-
-use core::*;
-use applayer;
-use applayer::LoggerFlags;
 
 use nbss_records::*;
 use smb1_records::*;
@@ -50,15 +42,18 @@ use events::*;
 use files::*;
 use smb2_ioctl::*;
 
-pub static mut SURICATA_SMB_FILE_CONFIG: Option<&'static SuricataFileContext> = None;
+use filecontainer::*;
 
-#[no_mangle]
-pub extern "C" fn rs_smb_init(context: &'static mut SuricataFileContext)
-{
-    unsafe {
-        SURICATA_SMB_FILE_CONFIG = Some(context);
-    }
-}
+// From stream.h.
+pub const STREAM_START:    u8 = 0x01;
+pub const STREAM_EOF:      u8 = 0x02;
+pub const STREAM_TOSERVER: u8 = 0x04;
+pub const STREAM_TOCLIENT: u8 = 0x08;
+pub const STREAM_GAP:      u8 = 0x10;
+pub const STREAM_DEPTH:    u8 = 0x20;
+pub const STREAM_MIDSTREAM:u8 = 0x40;
+
+pub static mut SURICATA_SMB_FILE_CONFIG: Option<&'static SuricataFileContext> = None;
 
 pub const SMB_NTSTATUS_SUCCESS:                    u32 = 0;
 pub const SMB_NTSTATUS_PENDING:                    u32 = 0x00000103;
@@ -562,9 +557,6 @@ pub struct SMBTransaction {
     /// detection engine flags for use by detection engine
     detect_flags_ts: u64,
     detect_flags_tc: u64,
-    pub logged: LoggerFlags,
-    pub de_state: Option<*mut DetectEngineState>,
-    pub events: *mut AppLayerDecoderEvents,
 }
 
 impl SMBTransaction {
@@ -578,9 +570,6 @@ impl SMBTransaction {
             type_data: None,
             detect_flags_ts: 0,
             detect_flags_tc: 0,
-            logged: LoggerFlags::new(),
-            de_state: None,
-            events: std::ptr::null_mut(),
         }
     }
 
@@ -594,15 +583,6 @@ impl SMBTransaction {
     }
 
     pub fn free(&mut self) {
-        if self.events != std::ptr::null_mut() {
-            sc_app_layer_decoder_events_free_events(&mut self.events);
-        }
-        match self.de_state {
-            Some(state) => {
-                sc_detect_engine_state_free(state);
-            }
-            _ => {}
-        }
     }
 }
 
@@ -1759,325 +1739,4 @@ impl SMBState {
             }
         }
     }
-}
-
-/// Returns *mut SMBState
-#[no_mangle]
-pub extern "C" fn rs_smb_state_new() -> *mut libc::c_void {
-    let state = SMBState::new();
-    let boxed = Box::new(state);
-    debug!("allocating state");
-    return unsafe{transmute(boxed)};
-}
-
-/// Params:
-/// - state: *mut SMBState as void pointer
-#[no_mangle]
-pub extern "C" fn rs_smb_state_free(state: *mut libc::c_void) {
-    // Just unbox...
-    debug!("freeing state");
-    let mut smb_state: Box<SMBState> = unsafe{transmute(state)};
-    smb_state.free();
-}
-
-/// C binding parse a SMB request. Returns 1 on success, -1 on failure.
-#[no_mangle]
-pub extern "C" fn rs_smb_parse_request_tcp(_flow: *mut Flow,
-                                       state: &mut SMBState,
-                                       _pstate: *mut libc::c_void,
-                                       input: *mut libc::uint8_t,
-                                       input_len: libc::uint32_t,
-                                       _data: *mut libc::c_void,
-                                       flags: u8)
-                                       -> libc::int8_t
-{
-    let buf = unsafe{std::slice::from_raw_parts(input, input_len as usize)};
-    debug!("parsing {} bytes of request data", input_len);
-
-    /* START with MISTREAM set: record might be starting the middle. */
-    if flags & (STREAM_START|STREAM_MIDSTREAM) == (STREAM_START|STREAM_MIDSTREAM) {
-        state.ts_gap = true;
-    }
-
-    if state.parse_tcp_data_ts(buf) == 0 {
-        return 1;
-    } else {
-        return -1;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_parse_request_tcp_gap(
-                                        state: &mut SMBState,
-                                        input_len: libc::uint32_t)
-                                        -> libc::int8_t
-{
-    if state.parse_tcp_data_ts_gap(input_len as u32) == 0 {
-        return 1;
-    }
-    return -1;
-}
-
-
-#[no_mangle]
-pub extern "C" fn rs_smb_parse_response_tcp(_flow: *mut Flow,
-                                        state: &mut SMBState,
-                                        _pstate: *mut libc::c_void,
-                                        input: *mut libc::uint8_t,
-                                        input_len: libc::uint32_t,
-                                        _data: *mut libc::c_void,
-                                        flags: u8)
-                                        -> libc::int8_t
-{
-    debug!("parsing {} bytes of response data", input_len);
-    let buf = unsafe{std::slice::from_raw_parts(input, input_len as usize)};
-
-    /* START with MISTREAM set: record might be starting the middle. */
-    if flags & (STREAM_START|STREAM_MIDSTREAM) == (STREAM_START|STREAM_MIDSTREAM) {
-        state.tc_gap = true;
-    }
-
-    if state.parse_tcp_data_tc(buf) == 0 {
-        return 1;
-    } else {
-        return -1;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_parse_response_tcp_gap(
-                                        state: &mut SMBState,
-                                        input_len: libc::uint32_t)
-                                        -> libc::int8_t
-{
-    if state.parse_tcp_data_tc_gap(input_len as u32) == 0 {
-        return 1;
-    }
-    return -1;
-}
-
-// probing parser
-// return 1 if found, 0 is not found
-#[no_mangle]
-pub extern "C" fn rs_smb_probe_tcp(input: *const libc::uint8_t, len: libc::uint32_t)
-                               -> libc::int8_t
-{
-    let slice = build_slice!(input, len as usize);
-    match search_smb_record(slice) {
-        IResult::Done(_, _) => {
-            debug!("smb found");
-            return 1;
-        },
-        _ => {
-            debug!("smb not found in {:?}", slice);
-        },
-    }
-    match parse_nbss_record_partial(slice) {
-        IResult::Done(_, ref hdr) => {
-            if hdr.is_smb() {
-                debug!("smb found");
-                return 1;
-            } else if hdr.is_valid() {
-                debug!("nbss found, assume smb");
-                return 1;
-            }
-        },
-        _ => { },
-    }
-    debug!("no smb");
-    return -1
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_get_tx_count(state: &mut SMBState)
-                                            -> libc::uint64_t
-{
-    debug!("rs_smb_state_get_tx_count: returning {}", state.tx_id);
-    return state.tx_id;
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_get_tx(state: &mut SMBState,
-                                      tx_id: libc::uint64_t)
-                                      -> *mut SMBTransaction
-{
-    match state.get_tx_by_id(tx_id) {
-        Some(tx) => {
-            return unsafe{transmute(tx)};
-        }
-        None => {
-            return std::ptr::null_mut();
-        }
-    }
-}
-
-// for use with the C API call StateGetTxIterator
-#[no_mangle]
-pub extern "C" fn rs_smb_state_get_tx_iterator(
-                                      state: &mut SMBState,
-                                      min_tx_id: libc::uint64_t,
-                                      istate: &mut libc::uint64_t)
-                                      -> applayer::AppLayerGetTxIterTuple
-{
-    match state.get_tx_iterator(min_tx_id, istate) {
-        Some((tx, out_tx_id, has_next)) => {
-            let c_tx = unsafe { transmute(tx) };
-            let ires = applayer::AppLayerGetTxIterTuple::with_values(c_tx, out_tx_id, has_next);
-            return ires;
-        }
-        None => {
-            return applayer::AppLayerGetTxIterTuple::not_found();
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_tx_free(state: &mut SMBState,
-                                       tx_id: libc::uint64_t)
-{
-    debug!("freeing tx {}", tx_id as u64);
-    state.free_tx(tx_id);
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_progress_completion_status(
-    _direction: libc::uint8_t)
-    -> libc::c_int
-{
-    return 1;
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_tx_get_alstate_progress(tx: &mut SMBTransaction,
-                                                  direction: libc::uint8_t)
-                                                  -> libc::uint8_t
-{
-    if direction == STREAM_TOSERVER && tx.request_done {
-        debug!("tx {} TOSERVER progress 1 => {:?}", tx.id, tx);
-        return 1;
-    } else if direction == STREAM_TOCLIENT && tx.response_done {
-        debug!("tx {} TOCLIENT progress 1 => {:?}", tx.id, tx);
-        return 1;
-    } else {
-        debug!("tx {} direction {} progress 0", tx.id, direction);
-        return 0;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_tx_set_logged(_state: &mut SMBState,
-                                       tx: &mut SMBTransaction,
-                                       bits: libc::uint32_t)
-{
-    tx.logged.set(bits);
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_tx_get_logged(_state: &mut SMBState,
-                                       tx: &mut SMBTransaction)
-                                       -> u32
-{
-    return tx.logged.get();
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_tx_set_detect_flags(
-                                       tx: &mut SMBTransaction,
-                                       direction: libc::uint8_t,
-                                       flags: libc::uint64_t)
-{
-    if (direction & STREAM_TOSERVER) != 0 {
-        tx.detect_flags_ts = flags as u64;
-    } else {
-        tx.detect_flags_tc = flags as u64;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_tx_get_detect_flags(
-                                       tx: &mut SMBTransaction,
-                                       direction: libc::uint8_t)
-                                       -> libc::uint64_t
-{
-    if (direction & STREAM_TOSERVER) != 0 {
-        return tx.detect_flags_ts as libc::uint64_t;
-    } else {
-        return tx.detect_flags_tc as libc::uint64_t;
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_set_tx_detect_state(
-    tx: &mut SMBTransaction,
-    de_state: &mut DetectEngineState)
-{
-    tx.de_state = Some(de_state);
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_get_tx_detect_state(
-    tx: &mut SMBTransaction)
-    -> *mut DetectEngineState
-{
-    match tx.de_state {
-        Some(ds) => {
-            return ds;
-        },
-        None => {
-            return std::ptr::null_mut();
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_truncate(
-        state: &mut SMBState,
-        direction: libc::uint8_t)
-{
-    if (direction & STREAM_TOSERVER) != 0 {
-        state.trunc_ts();
-    } else {
-        state.trunc_tc();
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_get_events(state: &mut SMBState,
-                                          tx_id: libc::uint64_t)
-                                          -> *mut AppLayerDecoderEvents
-{
-    match state.get_tx_by_id(tx_id) {
-        Some(tx) => {
-            return tx.events;
-        }
-        _ => {
-            return std::ptr::null_mut();
-        }
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn rs_smb_state_get_event_info(event_name: *const libc::c_char,
-                                              event_id: *mut libc::c_int,
-                                              event_type: *mut AppLayerEventType)
-                                              -> i8
-{
-    if event_name == std::ptr::null() {
-        return -1;
-    }
-    let c_event_name: &CStr = unsafe { CStr::from_ptr(event_name) };
-    let event = match c_event_name.to_str() {
-        Ok(s) => {
-            smb_str_to_event(s)
-        },
-        Err(_) => -1, // UTF-8 conversion failed
-    };
-    unsafe {
-        *event_type = APP_LAYER_EVENT_TYPE_TRANSACTION;
-        *event_id = event as libc::c_int;
-    };
-    if event == -1 {
-        return -1;
-    }
-    0
 }
